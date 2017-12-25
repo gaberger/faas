@@ -1,8 +1,6 @@
 version: "3.2"
 services:
     gateway:
-        volumes:
-            - "/var/run/docker.sock:/var/run/docker.sock"
         ports:
             - 8080:8080
         image: functions/gateway:0.6.15
@@ -30,7 +28,7 @@ services:
                 constraints:
                     - 'node.platform.os == linux'
 
-# Docker Swarm provider
+    # Docker Swarm provider
     faas-swarm:
         volumes:
             - "/var/run/docker.sock:/var/run/docker.sock"
@@ -99,8 +97,7 @@ services:
             placement:
                 constraints:
                     - 'node.platform.os == linux'
-
-    # End
+    # End services
 
     # Start monitoring
 
