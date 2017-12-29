@@ -1,4 +1,4 @@
-version: "3.2"
+version: "3.3"
 services:
     gateway:
         ports:
@@ -34,13 +34,13 @@ services:
             - "/var/run/docker.sock:/var/run/docker.sock"
         # ports:
             # - 8081:8080
-        image:  functions/faas-swarm:0.1.3
+        image:  functions/faas-swarm:0.1.3a
         networks:
             - functions
         environment:
             read_timeout:  10   # set both here, and on your functions
             write_timeout: 10   # set both here, and on your functions
-            DOCKER_API_VERSION: 1.30
+            DOCKER_API_VERSION: "1.30"
         deploy:
             placement:
                 constraints:
@@ -103,27 +103,35 @@ services:
     # Start monitoring
 
     prometheus:
-        image: functions/prometheus:latest  # autobuild from Dockerfile in repo.
-        command: "-config.file=/etc/prometheus/prometheus.yml -storage.local.path=/prometheus -storage.local.memory-chunks=10000 --alertmanager.url=http://alertmanager:9093"
-        ports:
-            - 9090:9090
+        image: prom/prometheus:v1.5.2
         environment:
             no_proxy: "gateway"
+        configs:
+          - source: prometheus_config
+            target: /etc/prometheus/prometheus.yml
+          - source: prometheus_rules
+            target: /etc/prometheus/alert.rules
+        command:
+          - '-config.file=/etc/prometheus/prometheus.yml'
+          - '-storage.local.path=/prometheus'
+          - '-alertmanager.url=http://alertmanager:9093'
+        ports:
+            - 9090:9090
         networks:
             - functions
         deploy:
+            placement:
+                constraints:
+                    - 'node.role == manager'
+                    - 'node.platform.os == linux'
             resources:
                 limits:
                     memory: 500M
                 reservations:
                     memory: 200M
-            placement:
-                constraints:
-                    - 'node.role == manager'
-                    - 'node.platform.os == linux'
 
     alertmanager:
-        image: functions/alertmanager:latest    # autobuild from Dockerfile in repo.
+        image: prom/alertmanager:v0.7.1
         environment:
             no_proxy: "gateway"
         command:
@@ -144,23 +152,11 @@ services:
                 constraints: 
                     - 'node.role == manager'
                     - 'node.platform.os == linux'
+        configs:
+            - source: alertmanager_config
+              target: /alertmanager.yml
 
     # Sample functions go here.
-
-    # Service label of "function" allows functions to show up in UI on http://gateway:8080/
-    webhookstash:
-        image: functions/webhookstash:latest
-        labels:
-            function: "true"
-        networks:
-            - functions
-        environment:
-            no_proxy: "gateway"
-            https_proxy: $https_proxy
-        deploy:
-            placement:
-                constraints:
-                    - 'node.platform.os == linux'
 
     # Pass a username as an argument to find how many images user has pushed to Docker Hub.
     hubstats:
@@ -176,7 +172,6 @@ services:
             placement:
                 constraints:
                     - 'node.platform.os == linux'
-
 
     # Node.js gives OS info about the node (Host)
     nodeinfo:
@@ -245,23 +240,6 @@ services:
                 constraints:
                     - 'node.platform.os == linux'
 
-
-    # Decodes base64 representation of request body.
-    decodebase64:
-        image: functions/alpine:latest
-        labels:
-            function: "true"
-        networks:
-            - functions
-        environment:
-            fprocess: "base64 -d"
-            no_proxy: "gateway"
-            https_proxy: $https_proxy
-        deploy:
-            placement:
-                constraints:
-                    - 'node.platform.os == linux'
-
     # Converts body in (markdown format) -> (html)
     markdown:
         image: functions/markdown-render:latest
@@ -276,6 +254,14 @@ services:
             placement:
                 constraints:
                     - 'node.platform.os == linux'
+
+configs:
+     prometheus_config:
+         file: ./prometheus/prometheus.yml
+     prometheus_rules:
+         file: ./prometheus/alert.rules
+     alertmanager_config:
+         file: ./prometheus/alertmanager.yml
 
 networks:
     functions:
