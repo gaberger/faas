@@ -3,7 +3,7 @@ services:
     gateway:
         ports:
             - 8080:8080
-        image: functions/gateway:0.6.15-noswarm
+        image: functions/gateway:0.6.16-rc1
         networks:
             - functions
         environment:
@@ -103,18 +103,17 @@ services:
     # Start monitoring
 
     prometheus:
-        image: prom/prometheus:v1.5.2
+        image: prom/prometheus:v2.0.0
         environment:
             no_proxy: "gateway"
         configs:
           - source: prometheus_config
             target: /etc/prometheus/prometheus.yml
           - source: prometheus_rules
-            target: /etc/prometheus/alert.rules
+            target: /etc/prometheus/alert.rules.yml
         command:
-          - '-config.file=/etc/prometheus/prometheus.yml'
-          - '-storage.local.path=/prometheus'
-          - '-alertmanager.url=http://alertmanager:9093'
+          - '--config.file=/etc/prometheus/prometheus.yml'
+        #   - '-storage.local.path=/prometheus'
         ports:
             - 9090:9090
         networks:
@@ -259,7 +258,7 @@ configs:
      prometheus_config:
          file: ./prometheus/prometheus.yml
      prometheus_rules:
-         file: ./prometheus/alert.rules
+         file: ./prometheus/alert.rules.yml
      alertmanager_config:
          file: ./prometheus/alertmanager.yml
 
